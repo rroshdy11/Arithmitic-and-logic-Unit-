@@ -1,0 +1,145 @@
+`define Num_BITS 4
+
+module half_adder(sum, Carry, a, b);
+input a, b;
+output sum, Carry;
+xor(sum, a, b);
+and(Carry, a, b);
+endmodule
+
+module full_adder(sum, Carry, x, y, z);
+input x, y, z;
+output sum, Carry;
+wire s1, c1, c2;
+half_adder h1(s1, c1, x, y);
+half_adder h2(sum, c2, s1, z);
+or(Carry, c1, c2);
+endmodule
+
+module mux_4(input c0,input c1,input c2,input c3,input s1,input s0,output outmux);
+wire s0n,s1n;
+wire w1,w2,w3,w4;
+not n1(s0n,s0);
+not n1(s1n,s1);
+and and1(w1,c0,s1n,s0n);
+and and2(w2,c1,s1n,s0);
+and and3(w3,c2,s1,s0n);
+and and4(w4,c3,s1,s0);
+
+or or1(outmux,w1,w2,w3,w4);
+
+endmodule
+
+
+module arithmitcunit(input [N:0] a,input [N:0]b,input [1:0]sel,output [N+1:0]result);
+    parameter N=`Num_BITS-1;
+    wire C0;
+    xor(C0,sel[0],sel[1]);
+    wire [N+1:0] outmux;
+    wire zero=0;
+    wire one=1;
+    genvar i;
+    genvar counter;
+    for (i=0;i<=N;i=i+1)begin
+    mux_4 mx0(b[i],~b[i],zero,one,sel[1],sel[0],outmux[i]);
+    end
+    wire [N:0]Carryout;
+
+    full_adder fa0(result[0],Carryout[0],a[0],outmux[0],C0);
+    for( counter=1;counter<=N;counter=counter+1)begin
+    full_adder fa1(result[counter],Carryout[counter],a[counter],outmux[counter],Carryout[counter-1]);
+    end
+    assign result[N+1]=Carryout[N];
+endmodule
+
+
+module shiftright(input ra,output shiftresult);
+    assign shiftresult=ra;
+endmodule
+
+module Logic(input[N:0] a,input[N:0] b, input [1:0]sel ,output [N+1:0]outlogic);
+    parameter N=`Num_BITS-1;
+    wire [N:0]and_result;
+    wire [N:0]or_result;
+    wire [N:0]xor_result;
+    wire [N:0]shift_result;
+
+    genvar i;
+    generate for( i=0;i<=N;i=i+1)begin
+    and(and_result[i],a[i],b[i]);
+    or(or_result[i],a[i],b[i]);
+    xor(xor_result[i],a[i],b[i]);
+    end
+    endgenerate
+
+    genvar count;
+    generate for( count=1;count<=N;count=count+1)begin
+    shiftright sr0(a[count],shift_result[count-1]);
+    end
+    endgenerate
+    //shiftting the last bit as a serial input
+    shiftright sr1(a[N],shift_result[N]);
+   //Filling the output of the logic module bit by bit
+    genvar counter;
+    generate for( counter=0;counter<=N;counter=counter+1)begin
+    mux_4 mx0(and_result[counter],or_result[counter],xor_result[counter],shift_result[counter],sel[1],sel[0],outlogic[counter]);
+    end
+    endgenerate
+
+endmodule
+
+module mux_2(input ari_result,input log_result,input s, output finalresult);
+wire T1, T2, Sbar;
+and (T1, log_result, s), (T2, ari_result, Sbar);
+not (Sbar, s);
+or (finalresult, T1, T2);
+endmodule
+
+module ALUcircuit ( input[N:0] a,input[N:0]b,input [1:0] sel,input s,output [N+1:0]finalresult);
+   parameter N=`Num_BITS-1;
+   wire [N+1:0] ari_result;
+   wire[N+1:0] log_result;
+   arithmitcunit ar1(a,b,sel,ari_result);
+   Logic logi(a,b,sel,log_result);
+   genvar i;
+   generate for( i=0;i<=N+1;i=i+1)begin
+   mux_2 alu(ari_result[i],log_result[i],s,finalresult[i]);
+   end
+   endgenerate
+
+endmodule
+
+module main();
+   parameter N=`Num_BITS-1;
+   reg [N:0]a;
+   reg [N:0]b;
+
+   reg [1:0]sel;
+   reg s;
+   wire [N+1:0]finalresult;
+   ALUcircuit aluu(.a(a),.b(b),.sel(sel),.s(s),.finalresult(finalresult));
+    initial
+    begin
+    a=4'b1010;b=4'b0110;sel=2'b00;s=1'b0;
+    #10
+    a=4'b1010;b=4'b0110;sel=2'b01;s=1'b0;
+    #10
+    a=4'b1010;b=4'b0110;sel=2'b10;s=1'b0;
+    #10
+    a=4'b1010;b=4'b0110;sel=2'b11;s=1'b0;
+    #10
+    a=4'b1010;b=4'b0110;sel=2'b00;s=1'b1;
+    #10
+    a=4'b1010;b=4'b0110;sel=2'b01;s=1'b1;
+    #10
+    a=4'b1010;b=4'b0110;sel=2'b10;s=1'b1;
+    #10
+    a=4'b1010;b=4'b0110;sel=2'b11;s=1'b1;
+    #10
+    $finish;
+    end
+    initial
+    begin
+    $monitor("a=%b,b=%b, sel=%b,s=%b, finalresult=%b",a, b, sel, s, finalresult);
+    end
+endmodule
