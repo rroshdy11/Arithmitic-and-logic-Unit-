@@ -1,4 +1,4 @@
-# Arithmitic-and-logic-Unit-
+
 an ALU that supports the following 8 operations:
 * Adding two N-bit numbers.
 * Subtracting two N-bit numbers.
